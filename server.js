@@ -16,19 +16,21 @@ import chatRoutes from "./ChatRoutes.js";
 dotenv.config();
 const app = express();
 
-// Enable CORS properly
+// ✅ Allowed Frontend Origins
 const allowedOrigins = [
   "https://ai-powered-emergency-health-network-frontend.vercel.app",
   "https://ai-powered-emergency-health-network-frontend-joxlhqvr4.vercel.app",
-  "https://ai-powered-emergency-health-network-frontend-emseamfrm.vercel.app" // Add the new frontend origin
+  "https://ai-powered-emergency-health-network-frontend-emseamfrm.vercel.app"
 ];
 
+// ✅ Enable CORS
 app.use(
   cors({
     origin: (origin, callback) => {
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
+        console.warn(`🚨 CORS Blocked: ${origin}`);
         callback(new Error("Not allowed by CORS"));
       }
     },
@@ -38,7 +40,7 @@ app.use(
   })
 );
 
-// Middleware for preflight requests
+// ✅ Middleware for Preflight Requests
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   if (allowedOrigins.includes(origin)) {
@@ -49,16 +51,15 @@ app.use((req, res, next) => {
   res.header("Access-Control-Allow-Credentials", "true");
 
   if (req.method === "OPTIONS") {
-    return res.sendStatus(200);
+    return res.sendStatus(204);
   }
-
   next();
 });
 
-// Middleware to parse JSON requests
+// ✅ Middleware to Parse JSON Requests
 app.use(express.json());
 
-// Routes
+// ✅ Routes
 app.use("/hospitals", hospitalRoutes);
 app.use("/login", loginRoutes);
 app.use("/donor-form", donorFormRoutes);
@@ -70,37 +71,39 @@ app.use("/patient-profile", patientProfileRoutes);
 app.use("/donor-list", donorListRoutes);
 app.use("/chat", chatRoutes);
 
-// Default route to confirm the server is running
+// ✅ Default Route
 app.get('/', (req, res) => {
-  res.send('Server is running!');
+  res.send('🚀 Server is running!');
 });
 
-// Health check route
+// ✅ Health Check Route
 app.get('/health', (req, res) => {
   res.status(200).json({ success: true, message: 'Server is running!' });
 });
 
-// Handle requests for favicon.ico to avoid 404 errors
+// ✅ Handle requests for favicon.ico
 app.get('/favicon.ico', (req, res) => {
   res.status(204).send(); // No Content
 });
 
-// Serve static files (React app) only in production
+// ✅ Serve Static Files (Production Mode)
 if (process.env.NODE_ENV === "production") {
-  app.use(express.static(path.join(path.resolve(), "/build")));
+  const buildPath = path.resolve("build");
+  app.use(express.static(buildPath));
   app.get("*", (req, res) => {
-    res.sendFile(path.resolve("build", "index.html"));
+    res.sendFile(path.join(buildPath, "index.html"));
   });
 }
 
-// Global error handler for unexpected errors
+// ✅ Global Error Handler
 app.use((err, req, res, next) => {
-  console.error('Unexpected error:', err);
-  res.status(500).json({ success: false, message: 'Internal Server Error' });
+  console.error("🚨 Unexpected Error:", err);
+  res.status(500).json({ success: false, message: "Internal Server Error" });
 });
 
+// ✅ Start Server
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
 
-// Export the app object for testing or external use
+// ✅ Export App for Testing
 export default app;
