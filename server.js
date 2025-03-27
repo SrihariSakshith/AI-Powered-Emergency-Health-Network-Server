@@ -19,7 +19,8 @@ const app = express();
 // Enable CORS properly
 const allowedOrigins = [
   "https://ai-powered-emergency-health-network-frontend.vercel.app",
-  "https://ai-powered-emergency-health-network-frontend-joxlhqvr4.vercel.app"
+  "https://ai-powered-emergency-health-network-frontend-joxlhqvr4.vercel.app",
+  "https://ai-powered-emergency-health-network-frontend-emseamfrm.vercel.app" // Add the new frontend origin
 ];
 
 app.use(
@@ -33,7 +34,7 @@ app.use(
     },
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true,
+    credentials: true, // Allow credentials
   })
 );
 
