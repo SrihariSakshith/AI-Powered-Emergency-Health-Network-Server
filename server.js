@@ -16,18 +16,35 @@ import chatRoutes from "./ChatRoutes.js";
 dotenv.config();
 const app = express();
 
-// Enable CORS (Configure this properly for production!)
-app.use(cors({
-  origin: 'https://ai-powered-emergency-health-network-frontend.vercel.app', // ✅ Removed trailing slash
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Ensure OPTIONS is included
-  allowedHeaders: ['Content-Type', 'Authorization'], // Allow required headers
-  credentials: true // Allow credentials like cookies, sessions, etc.
-}));
+// Enable CORS properly
+const allowedOrigins = ["https://ai-powered-emergency-health-network-frontend.vercel.app"];
+
+app.use(
+  cors({
+    origin: allowedOrigins,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    credentials: true,
+  })
+);
+
+// Middleware for preflight requests
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", allowedOrigins[0]);
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+  res.header("Access-Control-Allow-Credentials", "true");
+
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+
+  next();
+});
 
 // Middleware to parse JSON requests
 app.use(express.json());
 
-// Mount the routes
+// Routes
 app.use("/hospitals", hospitalRoutes);
 app.use("/login", loginRoutes);
 app.use("/donor-form", donorFormRoutes);
@@ -39,36 +56,13 @@ app.use("/patient-profile", patientProfileRoutes);
 app.use("/donor-list", donorListRoutes);
 app.use("/chat", chatRoutes);
 
-// Add missing routes for user location and blood group
-app.get('/donors/api/user-location', (req, res) => {
-  const { username, role } = req.query;
-  if (username && role) {
-    res.json({ location: 'Delhi, NCR' }); // Mock response
-  } else {
-    res.status(404).send('User location not found');
-  }
-});
-
-app.get('/donors/api/user-blood-group', (req, res) => {
-  const { username } = req.query;
-  if (username) {
-    res.json({ blood_group: 'AB+' }); // Mock response
-  } else {
-    res.status(404).send('Blood group not found');
-  }
-});
-
-// Serve static files (React app) only after API routes
+// Serve static files (React app) only in production
 if (process.env.NODE_ENV === "production") {
-    app.use(express.static(path.join(path.resolve(), "/build")));
-    app.get("*", (req, res) => {
-        if (!req.originalUrl.startsWith('/api') && !req.originalUrl.startsWith('/hospitals')) {
-            res.sendFile(path.resolve("build", "index.html"));
-        } else {
-            res.status(404).send("API route not found");
-        }
-    });
+  app.use(express.static(path.join(path.resolve(), "/build")));
+  app.get("*", (req, res) => {
+    res.sendFile(path.resolve("build", "index.html"));
+  });
 }
 
-const PORT = process.env.PORT || 3001; // Change to 3000 to match client-side requests
+const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
