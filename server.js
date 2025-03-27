@@ -18,7 +18,7 @@ const app = express();
 
 // Enable CORS (Configure this properly for production!)
 app.use(cors({
-  origin: 'http://localhost:3000', // Allow requests from the frontend
+  origin: 'https://ai-powered-emergency-health-network-frontend.vercel.app/', // Allow requests from the frontend
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Include OPTIONS for preflight requests
   credentials: true, // Allow cookies and credentials
 }));
