@@ -21,15 +21,22 @@ const allowedOrigins = ["https://ai-powered-emergency-health-network-frontend.ve
 
 app.use(
   cors({
-    origin: allowedOrigins,
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ['Content-Type'],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
   })
 );
 
 // Middleware for preflight requests
 app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", allowedOrigins[0]);
+  res.header("Access-Control-Allow-Origin", req.headers.origin || allowedOrigins[0]);
   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
   res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
   res.header("Access-Control-Allow-Credentials", "true");

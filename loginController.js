@@ -36,53 +36,50 @@ export const handleLogin = async (req, res) => {
     if (role === 'admin') {
       const admin = await adminCollection.findOne({ username: username });
       if (admin) {
-        // Compare password (using bcrypt if hashed)
-        const isMatch = admin.password === password;  // Replace with bcrypt if hashed password
+        const isMatch = await bcrypt.compare(password, admin.password);  // Use bcrypt for hashed password
         if (isMatch) {
           return res.json({ success: true, message: 'Admin login successful!' });
         } else {
-          return res.json({ success: false, message: 'Wrong username or password' });
+          return res.status(401).json({ success: false, message: 'Wrong username or password' });
         }
       } else {
-        return res.json({ success: false, message: 'Admin not found' });
+        return res.status(404).json({ success: false, message: 'Admin not found' });
       }
     }
 
-    // hospital login/signup
     if (role === 'hospital') {
       const hospital = await hospitalCollection.findOne({ username: username });
       if (hospital) {
-        const isMatch = hospital.password === password;  // Replace with bcrypt if password is hashed
+        const isMatch = await bcrypt.compare(password, hospital.password);  // Use bcrypt for hashed password
         if (isMatch) {
-          return res.json({ success: true, message: 'hospital login successful!' });
+          return res.json({ success: true, message: 'Hospital login successful!' });
         } else {
-          return res.json({ success: false, message: 'Wrong password' });
+          return res.status(401).json({ success: false, message: 'Wrong password' });
         }
       } else {
-        // New hospital registration
-        await hospitalCollection.insertOne({ username: username, password: password });
+        const hashedPassword = await bcrypt.hash(password, 10);  // Hash password before storing
+        await hospitalCollection.insertOne({ username: username, password: hashedPassword });
         return res.json({ success: true, message: 'New hospital registered and logged in!' });
       }
     }
 
-    // Patient login/signup
     if (role === 'patient') {
       const patient = await patientCollection.findOne({ username: username });
       if (patient) {
-        const isMatch = patient.password === password;  // Replace with bcrypt if password is hashed
+        const isMatch = await bcrypt.compare(password, patient.password);  // Use bcrypt for hashed password
         if (isMatch) {
           return res.json({ success: true, message: 'Patient login successful!' });
         } else {
-          return res.json({ success: false, message: 'Wrong password' });
+          return res.status(401).json({ success: false, message: 'Wrong password' });
         }
       } else {
-        // New patient registration
-        await patientCollection.insertOne({ username: username, password: password });
+        const hashedPassword = await bcrypt.hash(password, 10);  // Hash password before storing
+        await patientCollection.insertOne({ username: username, password: hashedPassword });
         return res.json({ success: true, message: 'New patient registered and logged in!' });
       }
     }
 
-    return res.json({ success: false, message: 'Invalid role' });
+    return res.status(400).json({ success: false, message: 'Invalid role' });
 
   } catch (error) {
     console.error('Error during login:', error);  // Log the error
