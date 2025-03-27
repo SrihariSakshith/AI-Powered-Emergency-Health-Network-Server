@@ -74,6 +74,11 @@ app.get('/', (req, res) => {
   res.send('Server is running!');
 });
 
+// Health check route
+app.get('/health', (req, res) => {
+  res.status(200).json({ success: true, message: 'Server is running!' });
+});
+
 // Handle requests for favicon.ico to avoid 404 errors
 app.get('/favicon.ico', (req, res) => {
   res.status(204).send(); // No Content
