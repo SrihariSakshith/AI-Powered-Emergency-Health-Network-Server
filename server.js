@@ -69,6 +69,16 @@ app.use("/patient-profile", patientProfileRoutes);
 app.use("/donor-list", donorListRoutes);
 app.use("/chat", chatRoutes);
 
+// Default route to confirm the server is running
+app.get('/', (req, res) => {
+  res.send('Server is running!');
+});
+
+// Handle requests for favicon.ico to avoid 404 errors
+app.get('/favicon.ico', (req, res) => {
+  res.status(204).send(); // No Content
+});
+
 // Serve static files (React app) only in production
 if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.join(path.resolve(), "/build")));
@@ -76,6 +86,12 @@ if (process.env.NODE_ENV === "production") {
     res.sendFile(path.resolve("build", "index.html"));
   });
 }
+
+// Global error handler for unexpected errors
+app.use((err, req, res, next) => {
+  console.error('Unexpected error:', err);
+  res.status(500).json({ success: false, message: 'Internal Server Error' });
+});
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
