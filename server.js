@@ -17,7 +17,10 @@ dotenv.config();
 const app = express();
 
 // Enable CORS properly
-const allowedOrigins = ["https://ai-powered-emergency-health-network-frontend.vercel.app"];
+const allowedOrigins = [
+  "https://ai-powered-emergency-health-network-frontend.vercel.app",
+  "https://ai-powered-emergency-health-network-frontend-joxlhqvr4.vercel.app"
+];
 
 app.use(
   cors({

@@ -33,8 +33,12 @@ export const handleLogin = async (req, res) => {
   console.log('Received login request:', req.body);  // Log the request data
 
   try {
+    if (!username || !password || !role) {
+      return res.status(400).json({ success: false, message: 'Missing required fields' });
+    }
+
     if (role === 'admin') {
-      const admin = await adminCollection.findOne({ username: username });
+      const admin = await adminCollection.findOne({ username });
       if (admin) {
         const isMatch = await bcrypt.compare(password, admin.password);  // Use bcrypt for hashed password
         if (isMatch) {
@@ -48,7 +52,7 @@ export const handleLogin = async (req, res) => {
     }
 
     if (role === 'hospital') {
-      const hospital = await hospitalCollection.findOne({ username: username });
+      const hospital = await hospitalCollection.findOne({ username });
       if (hospital) {
         const isMatch = await bcrypt.compare(password, hospital.password);  // Use bcrypt for hashed password
         if (isMatch) {
@@ -58,13 +62,13 @@ export const handleLogin = async (req, res) => {
         }
       } else {
         const hashedPassword = await bcrypt.hash(password, 10);  // Hash password before storing
-        await hospitalCollection.insertOne({ username: username, password: hashedPassword });
+        await hospitalCollection.insertOne({ username, password: hashedPassword });
         return res.json({ success: true, message: 'New hospital registered and logged in!' });
       }
     }
 
     if (role === 'patient') {
-      const patient = await patientCollection.findOne({ username: username });
+      const patient = await patientCollection.findOne({ username });
       if (patient) {
         const isMatch = await bcrypt.compare(password, patient.password);  // Use bcrypt for hashed password
         if (isMatch) {
@@ -74,7 +78,7 @@ export const handleLogin = async (req, res) => {
         }
       } else {
         const hashedPassword = await bcrypt.hash(password, 10);  // Hash password before storing
-        await patientCollection.insertOne({ username: username, password: hashedPassword });
+        await patientCollection.insertOne({ username, password: hashedPassword });
         return res.json({ success: true, message: 'New patient registered and logged in!' });
       }
     }
