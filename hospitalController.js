@@ -12,18 +12,17 @@ let patientCollection;
 
 async function connectToDatabase() {
   try {
-    const client = await MongoClient.connect(url);
+    const client = await MongoClient.connect(url, { useNewUrlParser: true, useUnifiedTopology: true });
     db = client.db(dbName);
     hospitalCollection = db.collection('Hospitals');
     patientCollection = db.collection('Patients');
-    console.log('Connected to MongoDB');
+    console.log(`✅ Connected to MongoDB database: ${dbName}`);
   } catch (error) {
-    console.error('MongoDB connection error:', error);
-    process.exit(1);
+    console.error('❌ MongoDB connection error:', error);
+    process.exit(1); // Exit the process if the connection fails
   }
 }
 
-// Call this function to connect to the database
 connectToDatabase();
 
 export const getAllHospitals = async (req, res) => {

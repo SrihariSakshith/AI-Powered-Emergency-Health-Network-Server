@@ -3,7 +3,7 @@ import { handleLogin } from "./loginController.js";
 
 const router = express.Router();
 
-// Correct the route to `/login/login` to match the frontend request
+// ✅ Ensure the route is defined as `/login/login`
 router.post("/login/login", handleLogin);
 
 // Catch-all for undefined endpoints
