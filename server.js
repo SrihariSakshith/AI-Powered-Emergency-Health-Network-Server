@@ -16,52 +16,21 @@ import chatRoutes from "./ChatRoutes.js";
 dotenv.config();
 const app = express();
 
-// ✅ Allowed Frontend Origins
-const allowedOrigins = [
-  "https://ai-powered-emergency-health-network-frontend.vercel.app",
-  "https://ai-powered-emergency-health-network-frontend-joxlhqvr4.vercel.app",
-  "https://ai-powered-emergency-health-network-frontend-emseamfrm.vercel.app"
-];
-
-// ✅ Enable CORS
+// ✅ Enable CORS with provided settings
 app.use(
   cors({
-    origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        console.warn(`🚨 CORS Blocked: ${origin}`);
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    origin: "https://ai-powered-emergency-health-network-server.vercel.app",
+    methods: ["POST", "GET"],
     credentials: true, // Allow credentials
   })
 );
-
-// ✅ Middleware for Preflight Requests
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  if (allowedOrigins.includes(origin)) {
-    res.header("Access-Control-Allow-Origin", origin);
-  }
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
-  res.header("Access-Control-Allow-Credentials", "true");
-
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(204);
-  }
-  next();
-});
 
 // ✅ Middleware to Parse JSON Requests
 app.use(express.json());
 
 // ✅ Routes
 app.use("/hospitals", hospitalRoutes);
-app.use("/login", loginRoutes); // Ensure the login routes are mounted correctly
+app.use("/login", loginRoutes);
 app.use("/donor-form", donorFormRoutes);
 app.use("/donors", donorsRoutes);
 app.use("/contact", contactRoutes);
@@ -72,17 +41,17 @@ app.use("/donor-list", donorListRoutes);
 app.use("/chat", chatRoutes);
 
 // ✅ Default Route
-app.get('/', (req, res) => {
-  res.send('🚀 Server is running!');
+app.get("/", (req, res) => {
+  res.send("🚀 Server is running!");
 });
 
 // ✅ Health Check Route
-app.get('/health', (req, res) => {
-  res.status(200).json({ success: true, message: 'Server is running!' });
+app.get("/health", (req, res) => {
+  res.status(200).json({ success: true, message: "Server is running!" });
 });
 
 // ✅ Handle requests for favicon.ico
-app.get('/favicon.ico', (req, res) => {
+app.get("/favicon.ico", (req, res) => {
   res.status(204).send(); // No Content
 });
 
