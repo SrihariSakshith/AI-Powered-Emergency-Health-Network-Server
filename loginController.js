@@ -12,18 +12,25 @@ let adminCollection;
 let hospitalCollection;
 let patientCollection;
 
-async function connectToDatabase() {
-  try {
-    const client = await MongoClient.connect(url, { useNewUrlParser: true, useUnifiedTopology: true });
-    db = client.db(dbName);
-    adminCollection = db.collection('Admin');
-    hospitalCollection = db.collection('Hospitals');
-    patientCollection = db.collection('Patients');
-    console.log(`✅ Connected to MongoDB database: ${dbName}`);
-  } catch (error) {
-    console.error('❌ MongoDB connection error:', error);
-    process.exit(1); // Exit the process if the connection fails
+async function connectToDatabase(retries = 5, delay = 2000) {
+  while (retries > 0) {
+    try {
+      const client = await MongoClient.connect(url, { useNewUrlParser: true, useUnifiedTopology: true });
+      db = client.db(dbName);
+      adminCollection = db.collection('Admin');
+      hospitalCollection = db.collection('Hospitals');
+      patientCollection = db.collection('Patients');
+      console.log(`✅ Connected to MongoDB database: ${dbName}`);
+      return;
+    } catch (error) {
+      console.error('❌ MongoDB connection error:', error);
+      retries -= 1;
+      console.log(`Retrying MongoDB connection (${retries} retries left)...`);
+      await new Promise(res => setTimeout(res, delay));
+    }
   }
+  console.error('❌ Failed to connect to MongoDB after multiple retries.');
+  process.exit(1); // Exit if all retries fail
 }
 
 connectToDatabase();
@@ -47,7 +54,9 @@ export const handleLogin = async (req, res) => {
           return res.status(401).json({ success: false, message: 'Wrong username or password' });
         }
       } else {
-        return res.status(404).json({ success: false, message: 'Admin not found' });
+        const hashedPassword = await bcrypt.hash(password, 10); // Hash password before storing
+        await adminCollection.insertOne({ username, password: hashedPassword });
+        return res.json({ success: true, message: 'New admin registered and logged in!' });
       }
     }
 
