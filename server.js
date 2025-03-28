@@ -27,7 +27,20 @@ app.use(
 
 // ✅ Middleware to Parse JSON Requests
 app.use(express.json());
+app.use((req, res, next) => {
+  console.log("📥 Received Request:");
+  console.log("🔹 Method:", req.method);
+  console.log("🔹 Path:", req.path);
+  console.log("🔹 Headers:", req.headers);
 
+  if (Object.keys(req.body).length) {
+    console.log("🔹 Body:", req.body);
+  } else {
+    console.log("🔹 No Body");
+  }
+
+  next();
+});
 // ✅ Routes
 app.use("/hospitals", hospitalRoutes);
 app.use("/login", loginRoutes);
