@@ -19,7 +19,7 @@ const app = express();
 // ✅ Enable CORS with provided settings
 app.use(
   cors({
-    origin: "https://ai-powered-emergency-health-network-server.vercel.app",
+    origin: "https://ai-powered-emergency-health-network-frontend.vercel.app",
     methods: ["POST", "GET"],
     credentials: true, // Allow credentials
   })
