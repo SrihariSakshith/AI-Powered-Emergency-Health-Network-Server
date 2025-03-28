@@ -17,13 +17,17 @@ dotenv.config();
 const app = express();
 
 // ✅ Enable CORS with frontend origin
+import cors from "cors";
+
 app.use(
   cors({
-    origin: "https://ai-powered-emergency-health-network-frontend.vercel.app",
-    methods: ["POST", "GET", "PUT", "DELETE", "OPTIONS"],
+    origin: ["https://ai-powered-emergency-health-network-frontend.vercel.app"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
+app.options("*", cors()); // Enable CORS for all preflight requests
 
 // ✅ Middleware to Parse JSON Requests
 app.use(express.json());
