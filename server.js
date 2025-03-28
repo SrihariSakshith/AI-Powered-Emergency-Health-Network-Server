@@ -40,9 +40,6 @@ app.use("/patient-profile", patientProfileRoutes);
 app.use("/donor-list", donorListRoutes);
 app.use("/chat", chatRoutes);
 
-// ✅ Ensure the login routes are mounted correctly
-app.use("/login", loginRoutes);
-
 // ✅ Default Route
 app.get("/", (req, res) => {
   res.send("🚀 Server is running!");
@@ -51,6 +48,11 @@ app.get("/", (req, res) => {
 // ✅ Health Check Route
 app.get("/health", (req, res) => {
   res.status(200).json({ success: true, message: "Server is running!" });
+});
+
+// ✅ Test Connection Route (Only checks if backend is running)
+app.get("/test-connection", (req, res) => {
+  res.status(200).json({ success: true, message: "Frontend & Backend are connected!" });
 });
 
 // ✅ Handle requests for favicon.ico
