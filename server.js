@@ -61,7 +61,7 @@ app.use(express.json());
 
 // ✅ Routes
 app.use("/hospitals", hospitalRoutes);
-app.use("/login", loginRoutes);
+app.use("/login", loginRoutes); // Ensure the login routes are mounted correctly
 app.use("/donor-form", donorFormRoutes);
 app.use("/donors", donorsRoutes);
 app.use("/contact", contactRoutes);
