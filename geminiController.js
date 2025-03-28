@@ -1,210 +1,81 @@
-import fetch from 'node-fetch';
-import { MongoClient } from 'mongodb';
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import dotenv from 'dotenv';
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { MongoClient } = require('mongodb');
 
-dotenv.config(); // Load environment variables
+const app = express();
+const PORT = process.env.PORT || 5000;
 
-const url = process.env.MONGODB_URI; // Matches `MONGODB_URI` in .env
-const dbName = process.env.DATABASE_NAME; // Matches `DATABASE_NAME` in .env
-const apiKey = process.env.GEMINI_API_KEY; // Matches `GEMINI_API_KEY` in .env
+// Load API Key
+const apiKey = process.env.GEMINI_API_KEY;
+console.log("🔄 API Key:", apiKey ? "Loaded" : "Not Loaded");
 
-let db;
-let geminiCollection;
-let medicalData;
+const genAI = new GoogleGenerativeAI(apiKey);
+
+// MongoDB Connection
+const url = process.env.MONGODB_URI;
+console.log("🔄 MongoDB URI:", url ? "Loaded" : "Not Loaded");
+
+const client = new MongoClient(url);
+let medicalData = '';
+
+async function connectToDatabase() {
+  try {
+    await client.connect();
+    const database = client.db('hospitalDB'); // Change this to your DB name
+    const collection = database.collection('medicalData'); // Change this to your collection name
+
+    const documents = await collection.find({}).toArray();
+    medicalData = JSON.stringify(documents, null, 2);
+    console.log("✅ MongoDB Connected. Medical data loaded.");
+  } catch (error) {
+    console.error("❌ MongoDB Connection Error:", error);
+  }
+}
+
+// Initialize Model
 let model;
-let chatHistories = [];
-const MAX_CHAT_HISTORY = 50; // Limit chat history to avoid memory issues
-
-async function connectToDatabase(retries = 5, delay = 2000) {
-  while (retries > 0) {
-    try {
-      const client = await MongoClient.connect(url, { useNewUrlParser: true, useUnifiedTopology: true });
-      db = client.db(dbName);
-      geminiCollection = db.collection('Gemini');
-      console.log(`✅ Connected to MongoDB database: ${dbName}`);
-      return;
-    } catch (error) {
-      console.error('❌ MongoDB connection error:', error);
-      retries -= 1;
-      console.log(`Retrying MongoDB connection (${retries} retries left)...`);
-      await new Promise(res => setTimeout(res, delay));
-    }
-  }
-  console.error('❌ Failed to connect to MongoDB after multiple retries.');
-  process.exit(1); // Exit if all retries fail
-}
-
-async function fetchAllData() {
-  try {
-    const collections = await db.listCollections().toArray();
-    const data = {};
-    for (const collection of collections) {
-      const collectionName = collection.name;
-      const collectionData = await db.collection(collectionName).find().toArray();
-      data[collectionName] = collectionData;
-    }
-    return JSON.stringify(data);
-  } catch (error) {
-    console.error('Error fetching data:', error);
-    return 'Medical data unavailable.'; // Fallback text
-  }
-}
-
 async function initializeGemini() {
-  try {
-    console.log("🔄 Initializing Gemini...");
-    await connectToDatabase();
-    console.log("🔄 Fetching medical data...");
-    medicalData = await fetchAllData(); // Load data once on startup
-
-    console.log("🔄 Initializing GoogleGenerativeAI...");
-    const genAI = new GoogleGenerativeAI(apiKey);
-
-    console.log("🔄 Setting up generative model...");
-    model = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash',
-      systemInstruction: `You are a medical bot designed to answer medical-related questions and recommend hospitals. Always provide accurate and reliable health information, but remind users to consult a doctor for medical advice. Do not disclose passwords, patient info, or admin info. Do not use markdown, stars, or next-line characters. Provide plain text responses. Here is the extracted medical database:\n${medicalData}`,
-    });
-
-    if (!model) {
-      throw new Error("Model initialization failed.");
-    }
-
-    console.log("✅ Gemini and database initialized successfully.");
-  } catch (error) {
-    console.error('❌ Error initializing Gemini:', error);
-    process.exit(1); // Exit if initialization fails
-  }
+  model = genAI.getGenerativeModel({
+    model: 'gemini-2.0-flash',
+    systemInstruction: `You are a medical bot designed to answer medical-related questions and recommend hospitals. Always provide accurate and reliable health information, but remind users to consult a doctor for medical advice. Do not disclose passwords, patient info, or admin info. Do not use markdown, stars, or next-line characters. Provide plain text responses. Here is the extracted medical database:\n${medicalData}`,
+  });
+  console.log("✅ AI Model Initialized.");
 }
 
-const generationConfig = {
-  temperature: 1,
-  topP: 0.95,
-  topK: 40,
-  maxOutputTokens: 8192,
-  responseMimeType: 'text/plain',
-};
+// Middleware
+app.use(express.json());
+app.use(cors());
 
-export const handleChat = async (req, res) => {
-  const { message } = req.body;
-
-  if (!message) {
-    return res.status(400).json({ success: false, message: 'Message is required' });
-  }
-
+// Route to handle user messages
+app.post('/chat', async (req, res) => {
   try {
     if (!model) {
-      console.error('❌ Error: Model is not initialized.');
-      return res.status(500).json({ success: false, message: 'Model is not initialized. Please try again later.' });
+      console.error("❌ Error: Model initialization failed.");
+      return res.status(500).json({ success: false, message: "AI Model is not initialized. Try restarting the server." });
     }
 
-    console.log("🔄 Starting chat session...");
-    const chatSession = model.startChat({
-      generationConfig,
-      history: chatHistories,
-    });
-
-    console.log("🔄 Sending message to the model...");
-    const result = await chatSession.sendMessage(message);
-
-    if (!result || !result.response) {
-      console.error('❌ Error: Invalid response from the model.');
-      return res.status(500).json({ success: false, message: 'Invalid response from the model. Please try again later.' });
+    const { message } = req.body;
+    if (!message) {
+      return res.status(400).json({ success: false, message: "Message is required." });
     }
 
-    const responseText = result.response.text();
+    const chat = model.startChat();
+    const result = await chat.sendMessage(message);
+    const response = await result.response;
+    const text = response.text();
 
-    // Manage chat history size
-    chatHistories.push({ role: 'user', parts: [{ text: message }] });
-    chatHistories.push({ role: 'model', parts: [{ text: responseText }] });
-    if (chatHistories.length > MAX_CHAT_HISTORY) {
-      chatHistories.shift(); // Remove the oldest entry
-    }
-
-    console.log("✅ Chat session completed successfully.");
-    res.status(200).json({ success: true, response: responseText });
+    res.json({ success: true, reply: text });
   } catch (error) {
-    console.error('❌ Error in handleChat:', error);
-    res.status(500).json({ success: false, message: 'Failed to process the request. Please try again later.' });
+    console.error("❌ Chat Error:", error);
+    res.status(500).json({ success: false, message: "An error occurred while processing your request." });
   }
-};
+});
 
-// Fetch Gemini data by ID
-export const getGeminiData = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const geminiData = await geminiCollection.findOne({ id });
-
-    if (!geminiData) {
-      return res.status(404).json({ success: false, message: 'Gemini data not found' });
-    }
-
-    res.json({ success: true, data: geminiData });
-  } catch (error) {
-    console.error('❌ Error fetching Gemini data:', error);
-    res.status(500).json({ success: false, message: 'Error fetching Gemini data' });
-  }
-};
-
-// Add new Gemini data
-export const addGeminiData = async (req, res) => {
-  try {
-    const newData = req.body;
-
-    if (!newData || !newData.id) {
-      return res.status(400).json({ success: false, message: 'Invalid data' });
-    }
-
-    const existingData = await geminiCollection.findOne({ id: newData.id });
-    if (existingData) {
-      return res.status(409).json({ success: false, message: 'Gemini data with this ID already exists' });
-    }
-
-    await geminiCollection.insertOne(newData);
-    res.status(201).json({ success: true, message: 'Gemini data added successfully' });
-  } catch (error) {
-    console.error('❌ Error adding Gemini data:', error);
-    res.status(500).json({ success: false, message: 'Error adding Gemini data' });
-  }
-};
-
-// Update Gemini data by ID
-export const updateGeminiData = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const updatedData = req.body;
-
-    const result = await geminiCollection.updateOne({ id }, { $set: updatedData });
-
-    if (result.modifiedCount === 0) {
-      return res.status(404).json({ success: false, message: 'Gemini data not found or no changes made' });
-    }
-
-    res.json({ success: true, message: 'Gemini data updated successfully' });
-  } catch (error) {
-    console.error('❌ Error updating Gemini data:', error);
-    res.status(500).json({ success: false, message: 'Error updating Gemini data' });
-  }
-};
-
-// Delete Gemini data by ID
-export const deleteGeminiData = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const result = await geminiCollection.deleteOne({ id });
-
-    if (result.deletedCount === 0) {
-      return res.status(404).json({ success: false, message: 'Gemini data not found' });
-    }
-
-    res.json({ success: true, message: 'Gemini data deleted successfully' });
-  } catch (error) {
-    console.error('❌ Error deleting Gemini data:', error);
-    res.status(500).json({ success: false, message: 'Error deleting Gemini data' });
-  }
-};
-
-// Initialize Gemini on startup
-initializeGemini();
+// Start the server
+app.listen(PORT, async () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+  await connectToDatabase();
+  await initializeGemini();
+});
