@@ -19,7 +19,7 @@ const app = express();
 // ✅ Enable CORS with frontend origin
 app.use(
   cors({
-    origin: "https://ai-powered-emergency-health-network-frontend.vercel.app", // Restrict to frontend
+    origin: "http://localhost:3000", // Restrict to frontend
     methods: ["POST", "GET", "PUT", "DELETE", "OPTIONS"],
     credentials: true, // Allow credentials
   })
@@ -32,7 +32,7 @@ app.use(express.json());
 app.use("/hospitals", hospitalRoutes);
 app.use("/login", loginRoutes);
 app.use("/donor-form", donorFormRoutes);
-app.use("/donors", donorListRoutes); // Ensure DonorListRoutes is mounted correctly
+app.use("/donorslist", donorListRoutes); // Ensure DonorListRoutes is mounted correctly
 app.use("/donors", donorsRoutes);
 app.use("/contact", contactRoutes);
 app.use("/contact-list", contactListRoutes);

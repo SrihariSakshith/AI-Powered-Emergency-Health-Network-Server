@@ -37,65 +37,59 @@ connectToDatabase();
 
 export const handleLogin = async (req, res) => {
   const { username, password, role } = req.body;
-  console.log('Received login request:', req.body);  // Log the request data
+  console.log('Received login request:', req.body);
 
   try {
     if (!username || !password || !role) {
       return res.status(400).json({ success: false, message: 'Missing required fields' });
     }
 
+    let collection;
     if (role === 'admin') {
-      const admin = await adminCollection.findOne({ username });
-      if (admin) {
-        const isMatch = await bcrypt.compare(password, admin.password);  // Use bcrypt for hashed password
-        if (isMatch) {
-          return res.json({ success: true, message: 'Admin login successful!' });
-        } else {
-          return res.status(401).json({ success: false, message: 'Wrong username or password' });
-        }
-      } else {
-        const hashedPassword = await bcrypt.hash(password, 10); // Hash password before storing
-        await adminCollection.insertOne({ username, password: hashedPassword });
-        return res.json({ success: true, message: 'New admin registered and logged in!' });
-      }
+      collection = adminCollection;
+    } else if (role === 'hospital') {
+      collection = hospitalCollection;
+    } else if (role === 'patient') {
+      collection = patientCollection;
+    } else {
+      return res.status(400).json({ success: false, message: 'Invalid role' });
     }
 
-    if (role === 'hospital') {
-      const hospital = await hospitalCollection.findOne({ username });
-      if (hospital) {
-        const isMatch = await bcrypt.compare(password, hospital.password);  // Use bcrypt for hashed password
-        if (isMatch) {
-          return res.json({ success: true, message: 'Hospital login successful!' });
-        } else {
-          return res.status(401).json({ success: false, message: 'Wrong password' });
-        }
-      } else {
-        const hashedPassword = await bcrypt.hash(password, 10);  // Hash password before storing
-        await hospitalCollection.insertOne({ username, password: hashedPassword });
-        return res.json({ success: true, message: 'New hospital registered and logged in!' });
-      }
+    const user = await collection.findOne({ username });
+
+    if (!user) {
+      console.log(`No ${role} found with username:`, username);
+      const hashedPassword = await bcrypt.hash(password, 10);
+      await collection.insertOne({ username, password: hashedPassword });
+      return res.json({ success: true, message: `New ${role} registered and logged in!` });
     }
 
-    if (role === 'patient') {
-      const patient = await patientCollection.findOne({ username });
-      if (patient) {
-        const isMatch = await bcrypt.compare(password, patient.password);  // Use bcrypt for hashed password
-        if (isMatch) {
-          return res.json({ success: true, message: 'Patient login successful!' });
-        } else {
-          return res.status(401).json({ success: false, message: 'Wrong password' });
-        }
-      } else {
-        const hashedPassword = await bcrypt.hash(password, 10);  // Hash password before storing
-        await patientCollection.insertOne({ username, password: hashedPassword });
-        return res.json({ success: true, message: 'New patient registered and logged in!' });
-      }
+    console.log(`User found:`, user);
+
+    if (!user.password) {
+      console.error(`Stored password missing for ${role}:`, user);
+      return res.status(500).json({ success: false, message: 'Server error: Missing password' });
     }
 
-    return res.status(400).json({ success: false, message: 'Invalid role' });
+    // 🔥 FIX: Ensure passwords are hashed before comparing
+    if (!user.password.startsWith('$2b$')) {  // If the password is not hashed
+      console.warn(`Plain text password detected for ${username}. Updating to hashed password.`);
+      const hashedPassword = await bcrypt.hash(user.password, 10);
+      await collection.updateOne({ username }, { $set: { password: hashedPassword } });
+      user.password = hashedPassword; // Update local variable
+    }
 
+    // Now, compare the password
+    const isMatch = await bcrypt.compare(password, user.password);
+    console.log(`Password match result:`, isMatch);
+
+    if (isMatch) {
+      return res.json({ success: true, message: `${role.charAt(0).toUpperCase() + role.slice(1)} login successful!` });
+    } else {
+      return res.status(401).json({ success: false, message: 'Wrong username or password' });
+    }
   } catch (error) {
-    console.error('Error during login:', error);  // Log the error
+    console.error('Error during login:', error);
     return res.status(500).json({ success: false, message: 'An error occurred. Please try again later.' });
   }
 };

@@ -29,6 +29,7 @@ connectToDatabase();
 export const getDonors = async (req, res) => {
   try {
     // Fetch data from Patients collection
+    console.log('Fetching donors data...');
     const patients = await patientsCollection.find({ donation: { $exists: true, $ne: '' } }).toArray();
     const patientsData = patients.map(patient => ({
       username: patient.username,

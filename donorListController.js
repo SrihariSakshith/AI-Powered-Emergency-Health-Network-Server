@@ -82,7 +82,7 @@ export const addDonor = async (req, res) => {
 export const deleteDonor = async (req, res) => {
   try {
     const { username } = req.params;
-
+    console.log('Deleting donor:', username);
     const result = await donorsCollection.deleteOne({ username });
 
     if (result.deletedCount === 0) {

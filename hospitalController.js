@@ -1,7 +1,7 @@
 import { MongoClient } from 'mongodb';
 import dotenv from 'dotenv';
 
-dotenv.config();
+dotenv.config(); // Load environment variables
 
 const url = process.env.MONGODB_URI;
 const dbName = process.env.DATABASE_NAME;
@@ -10,19 +10,27 @@ let db;
 let hospitalCollection;
 let patientCollection;
 
-async function connectToDatabase() {
-  try {
-    const client = await MongoClient.connect(url, { useNewUrlParser: true, useUnifiedTopology: true });
-    db = client.db(dbName);
-    hospitalCollection = db.collection('Hospitals');
-    patientCollection = db.collection('Patients');
-    console.log(`✅ Connected to MongoDB database: ${dbName}`);
-  } catch (error) {
-    console.error('❌ MongoDB connection error:', error);
-    process.exit(1); // Exit the process if the connection fails
+async function connectToDatabase(retries = 5, delay = 2000) {
+  while (retries > 0) {
+    try {
+      const client = await MongoClient.connect(url, { useNewUrlParser: true, useUnifiedTopology: true });
+      db = client.db(dbName);
+      hospitalCollection = db.collection('Hospitals');
+      patientCollection = db.collection('Patients');
+      console.log(`✅ Connected to MongoDB database: ${dbName}`);
+      return;
+    } catch (error) {
+      console.error('❌ MongoDB connection error:', error);
+      retries -= 1;
+      console.log(`Retrying MongoDB connection (${retries} retries left)...`);
+      await new Promise(res => setTimeout(res, delay));
+    }
   }
+  console.error('❌ Failed to connect to MongoDB after multiple retries.');
+  process.exit(1); // Exit if all retries fail
 }
 
+// Call this function to connect to the database
 connectToDatabase();
 
 export const getAllHospitals = async (req, res) => {
@@ -56,7 +64,7 @@ export const getRecommendedHospitals = async (req, res) => {
     let location = '';
 
     if (role === 'patient') {
-      const patient = await db.collection('Patients').findOne({ username });
+      const patient = await patientCollection.findOne({ username });
       if (patient) {
         location = patient.report?.address || '';
       }
@@ -80,7 +88,7 @@ export const getRecommendedHospitals = async (req, res) => {
     }
 
     const hospitalData = hospitals.map(hospital => ({
-      username: hospital.username || 'Unknown',
+      username: hospital.username,
       location: hospital.location || 'No Location',
       description: hospital.description || 'No Description Available',
       tests_available: Array.isArray(hospital.tests_available)

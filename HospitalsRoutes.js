@@ -3,9 +3,13 @@ import { getAllHospitals, getRecommendedHospitals } from './hospitalController.j
 
 const router = express.Router();
 
-router.get('/all', getAllHospitals);
-router.get('/recommended', getRecommendedHospitals);
+// Define routes for hospitals
+router.get('/all', getAllHospitals); // Fetch all hospitals
+router.get('/recommended', getRecommendedHospitals); // Fetch recommended hospitals
 
-// Ensure these routes are correctly defined and return JSON responses
+// Catch-all for undefined endpoints
+router.use((req, res) => {
+  res.status(404).json({ success: false, message: 'Endpoint not found' });
+});
 
 export default router;
