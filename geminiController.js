@@ -1,95 +1,121 @@
-import fetch from 'node-fetch';
-import { MongoClient } from 'mongodb';
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import dotenv from 'dotenv';
+import express from "express";
+import cors from "cors";
+import fetch from "node-fetch";
+import { MongoClient } from "mongodb";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import dotenv from "dotenv";
 
-dotenv.config();  // Load environment variables
-const url = process.env.MONGODB_URI;
+dotenv.config(); // Load environment variables
+
+const app = express();
+const PORT = process.env.PORT || 5000;
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+
+const mongoURI = process.env.MONGODB_URI;
 const dbName = process.env.DATABASE_NAME;
-const apiKey = process.env.GEMINI_API_KEY; // Access API key from environment variables
-const genAI = new GoogleGenerativeAI(apiKey);
-let medicalData;
-let model;
-let chatHistories = [];
-let client;
+const apiKey = process.env.GEMINI_API_KEY;
 
-async function initializeGemini() {
+// MongoDB and AI Variables
+let client;
+let db;
+let model;
+let medicalData;
+let chatHistories = [];
+
+// ✅ MongoDB Connection
+async function initializeMongoDB() {
     try {
-        client = new MongoClient(url);
+        client = new MongoClient(mongoURI, { serverSelectionTimeoutMS: 5000 });
         await client.connect();
-        const db = client.db(dbName);
-        medicalData = await fetchAllData(db); // Load data once on startup
-        model = genAI.getGenerativeModel({
-            model: "gemini-2.0-flash",
-            systemInstruction: `You are a medical bot designed to answer medical-related questions and Recommending Hospitals. Always provide accurate and reliable health information, but remind users to consult a doctor for medical advice. Remember donot disclose passwords, patient info and admin info. Don't give in markdown and Don't use stars and next line charcters, they don't be dispalyed properly. Give only normal text. Here is the extracted medical database:\n${medicalData}`,
-        });
-        console.log("Gemini and database initialized.");
+        db = client.db(dbName);
+        console.log("✅ MongoDB connected successfully.");
     } catch (error) {
-        console.error("Error initializing Gemini:", error);
-        process.exit(1); // Exit if initialization fails
+        console.error("❌ MongoDB connection error:", error);
+        db = null; // Prevent crash if MongoDB fails
     }
 }
 
-async function fetchAllData(db) {
+// ✅ Gemini AI Initialization
+async function initializeGemini() {
+    try {
+        const genAI = new GoogleGenerativeAI(apiKey);
+        medicalData = await fetchAllData();
+        model = genAI.getGenerativeModel({
+            model: "gemini-2.0-flash",
+            systemInstruction: `You are a medical chatbot providing health-related guidance and hospital recommendations. Never disclose passwords, personal information, or admin details. Respond in plain text format. Extracted database:\n${medicalData}`,
+        });
+        console.log("✅ Gemini AI initialized successfully.");
+    } catch (error) {
+        console.error("❌ Gemini AI initialization failed:", error);
+    }
+}
+
+// ✅ Fetch Data from MongoDB
+async function fetchAllData() {
+    if (!db) return "Medical data unavailable.";
+
     try {
         const collections = await db.listCollections().toArray();
         const data = {};
+
         for (const collection of collections) {
             const collectionName = collection.name;
             const collectionData = await db.collection(collectionName).find().toArray();
             data[collectionName] = collectionData;
         }
+
         return JSON.stringify(data);
     } catch (error) {
-        console.error("Error fetching data:", error);
-        return "Medical data unavailable."; // Fallback text
+        console.error("❌ Error fetching data:", error);
+        return "Medical data unavailable.";
     }
 }
 
-const generationConfig = {
-    temperature: 1,
-    topP: 0.95,
-    topK: 40,
-    maxOutputTokens: 8192,
-    responseMimeType: "text/plain",
-};
+// ✅ Basic Test Route (Frontend & Backend Check)
+app.get("/", (req, res) => {
+    res.send({ message: "Frontend & Backend are connected!" });
+});
 
-export const handleChat = async (req, res) => {
+// ✅ Chatbot Route
+app.post("/chat/chatbot", async (req, res) => {
     const { message } = req.body;
 
     if (!message) {
-        return res.status(400).send({ error: "Message is required" });
+        return res.status(400).json({ error: "Message is required" });
     }
 
     try {
         if (!model) {
-            console.error("Error: Model is not initialized.");
-            return res.status(500).send({ error: "Model is not initialized. Please try again later." });
+            return res.status(500).json({ error: "AI model not initialized. Try again later." });
         }
 
         const chatSession = model.startChat({
-            generationConfig,
             history: chatHistories,
         });
 
         const result = await chatSession.sendMessage(message);
 
         if (!result || !result.response) {
-            console.error("Error: Invalid response from the model.");
-            return res.status(500).send({ error: "Invalid response from the model. Please try again later." });
+            return res.status(500).json({ error: "AI response error. Try again later." });
         }
 
         const responseText = result.response.text();
-
         chatHistories.push({ role: "user", parts: [{ text: message }] });
         chatHistories.push({ role: "model", parts: [{ text: responseText }] });
 
-        res.status(200).send({ response: responseText });
+        res.json({ response: responseText });
     } catch (error) {
-        console.error("Error in handleChat:", error);
-        res.status(500).send({ error: "Failed to process the request. Please try again later." });
+        console.error("❌ Error in handleChat:", error);
+        res.status(500).json({ error: "Server error. Try again later." });
     }
-};
+});
 
-// Call initializeGemini before exporting
-initializeGemini();
+// ✅ Start Server
+app.listen(PORT, async () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+    await initializeMongoDB();
+    await initializeGemini();
+});
