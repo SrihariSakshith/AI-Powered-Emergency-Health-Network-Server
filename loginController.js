@@ -15,11 +15,19 @@ let patientCollection;
 async function connectToDatabase(retries = 5, delay = 2000) {
   while (retries > 0) {
     try {
-      const client = await MongoClient.connect(url, { useNewUrlParser: true, useUnifiedTopology: true,serverSelectionTimeoutMS: 60000 });
+      const client = await MongoClient.connect(url, { 
+        useNewUrlParser: true, 
+        useUnifiedTopology: true, 
+        serverSelectionTimeoutMS: 60000 
+      });
+
       db = client.db(dbName);
+
+      // Ensure collections are assigned
       adminCollection = db.collection('Admin');
       hospitalCollection = db.collection('Hospitals');
       patientCollection = db.collection('Patients');
+
       console.log(`✅ Connected to MongoDB database: ${dbName}`);
       return;
     } catch (error) {
@@ -33,6 +41,7 @@ async function connectToDatabase(retries = 5, delay = 2000) {
   process.exit(1); // Exit if all retries fail
 }
 
+// Establish connection on startup
 connectToDatabase();
 
 export const handleLogin = async (req, res) => {
@@ -45,14 +54,15 @@ export const handleLogin = async (req, res) => {
     }
 
     let collection;
-    if (role === 'admin') {
-      collection = adminCollection;
-    } else if (role === 'hospital') {
-      collection = hospitalCollection;
-    } else if (role === 'patient') {
-      collection = patientCollection;
-    } else {
-      return res.status(400).json({ success: false, message: 'Invalid role' });
+    if (role === 'admin') collection = adminCollection;
+    else if (role === 'hospital') collection = hospitalCollection;
+    else if (role === 'patient') collection = patientCollection;
+    else return res.status(400).json({ success: false, message: 'Invalid role' });
+
+    // 🔥 FIX: Ensure collection is initialized before using it
+    if (!collection) {
+      console.error('❌ Database collection is undefined for role:', role);
+      return res.status(500).json({ success: false, message: 'Server error: Database not initialized' });
     }
 
     const user = await collection.findOne({ username });
@@ -64,16 +74,16 @@ export const handleLogin = async (req, res) => {
       return res.json({ success: true, message: `New ${role} registered and logged in!` });
     }
 
-    console.log(`User found:`, user);
+    console.log(`✅ User found:`, user);
 
     if (!user.password) {
-      console.error(`Stored password missing for ${role}:`, user);
+      console.error(`❌ Stored password missing for ${role}:`, user);
       return res.status(500).json({ success: false, message: 'Server error: Missing password' });
     }
 
     // 🔥 FIX: Ensure passwords are hashed before comparing
-    if (!user.password.startsWith('$2b$')) {  // If the password is not hashed
-      console.warn(`Plain text password detected for ${username}. Updating to hashed password.`);
+    if (!user.password.startsWith('$2b$')) {  // If password is not hashed
+      console.warn(`⚠️ Plain text password detected for ${username}. Updating to hashed password.`);
       const hashedPassword = await bcrypt.hash(user.password, 10);
       await collection.updateOne({ username }, { $set: { password: hashedPassword } });
       user.password = hashedPassword; // Update local variable
@@ -81,7 +91,7 @@ export const handleLogin = async (req, res) => {
 
     // Now, compare the password
     const isMatch = await bcrypt.compare(password, user.password);
-    console.log(`Password match result:`, isMatch);
+    console.log(`🔍 Password match result:`, isMatch);
 
     if (isMatch) {
       return res.json({ success: true, message: `${role.charAt(0).toUpperCase() + role.slice(1)} login successful!` });
@@ -89,7 +99,7 @@ export const handleLogin = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Wrong username or password' });
     }
   } catch (error) {
-    console.error('Error during login:', error);
+    console.error('❌ Error during login:', error);
     return res.status(500).json({ success: false, message: 'An error occurred. Please try again later.' });
   }
 };
