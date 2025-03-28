@@ -53,14 +53,25 @@ async function fetchAllData() {
 
 async function initializeGemini() {
   try {
+    console.log("🔄 Initializing Gemini...");
     await connectToDatabase();
+    console.log("🔄 Fetching medical data...");
     medicalData = await fetchAllData(); // Load data once on startup
+
+    console.log("🔄 Initializing GoogleGenerativeAI...");
     const genAI = new GoogleGenerativeAI(apiKey);
+
+    console.log("🔄 Setting up generative model...");
     model = genAI.getGenerativeModel({
       model: 'gemini-2.0-flash',
       systemInstruction: `You are a medical bot designed to answer medical-related questions and recommend hospitals. Always provide accurate and reliable health information, but remind users to consult a doctor for medical advice. Do not disclose passwords, patient info, or admin info. Do not use markdown, stars, or next-line characters. Provide plain text responses. Here is the extracted medical database:\n${medicalData}`,
     });
-    console.log('✅ Gemini and database initialized.');
+
+    if (!model) {
+      throw new Error("Model initialization failed.");
+    }
+
+    console.log("✅ Gemini and database initialized successfully.");
   } catch (error) {
     console.error('❌ Error initializing Gemini:', error);
     process.exit(1); // Exit if initialization fails
@@ -88,11 +99,13 @@ export const handleChat = async (req, res) => {
       return res.status(500).json({ success: false, message: 'Model is not initialized. Please try again later.' });
     }
 
+    console.log("🔄 Starting chat session...");
     const chatSession = model.startChat({
       generationConfig,
       history: chatHistories,
     });
 
+    console.log("🔄 Sending message to the model...");
     const result = await chatSession.sendMessage(message);
 
     if (!result || !result.response) {
@@ -109,6 +122,7 @@ export const handleChat = async (req, res) => {
       chatHistories.shift(); // Remove the oldest entry
     }
 
+    console.log("✅ Chat session completed successfully.");
     res.status(200).json({ success: true, response: responseText });
   } catch (error) {
     console.error('❌ Error in handleChat:', error);
