@@ -1,5 +1,5 @@
 import express from "express";
-import cors from "cors"; // ✅ Import once
+import cors from "cors";
 import path from "path";
 import dotenv from "dotenv";
 import hospitalRoutes from "./HospitalsRoutes.js";
@@ -16,34 +16,30 @@ import chatRoutes from "./ChatRoutes.js";
 dotenv.config();
 const app = express();
 
-// ✅ CORS Middleware (NO DUPLICATE IMPORT)
+// ✅ Enable CORS with frontend origin
 app.use(
   cors({
     origin: "https://ai-powered-emergency-health-network-frontend.vercel.app",
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    methods: ["POST", "GET", "PUT", "DELETE", "OPTIONS"],
     credentials: true,
-    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
-
-// ✅ Fix Preflight Issue
-app.options("*", (req, res) => res.sendStatus(200));
 
 // ✅ Middleware to Parse JSON Requests
 app.use(express.json());
 
 // ✅ Routes
-app.use("/api/hospitals", hospitalRoutes);
+app.use("/hospitals", hospitalRoutes);
 app.use("/login", loginRoutes);
-app.use("/api/donor-form", donorFormRoutes);
-app.use("/api/donorslist", donorListRoutes);
-app.use("/api/donors", donorsRoutes);
-app.use("/api/contact", contactRoutes);
-app.use("/api/contact-list", contactListRoutes);
-app.use("/api/hospital-profile", hospitalProfileRoutes);
-app.use("/api/patient-profile", patientProfileRoutes);
-app.use("/api/donor-list", donorListRoutes);
-app.use("/api/chat", chatRoutes);
+app.use("/donor-form", donorFormRoutes);
+app.use("/donorslist", donorListRoutes);
+app.use("/donors", donorsRoutes);
+app.use("/contact", contactRoutes);
+app.use("/contact-list", contactListRoutes);
+app.use("/hospital-profile", hospitalProfileRoutes);
+app.use("/patient-profile", patientProfileRoutes);
+app.use("/donor-list", donorListRoutes);
+app.use("/chat", chatRoutes);
 
 // ✅ Default Route
 app.get("/", (req, res) => {
@@ -51,14 +47,28 @@ app.get("/", (req, res) => {
 });
 
 // ✅ Health Check Route
-app.get("/api/health", (req, res) => {
+app.get("/health", (req, res) => {
   res.status(200).json({ success: true, message: "Server is running!" });
 });
 
 // ✅ Test Connection Route
-app.get("/api/test-connection", (req, res) => {
+app.get("/test-connection", (req, res) => {
   res.status(200).json({ success: true, message: "Frontend & Backend are connected!" });
 });
+
+// ✅ Handle requests for favicon.ico
+app.get("/favicon.ico", (req, res) => {
+  res.status(204).send();
+});
+
+// ✅ Serve Static Files (Production Mode)
+if (process.env.NODE_ENV === "production") {
+  const buildPath = path.resolve("build");
+  app.use(express.static(buildPath));
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(buildPath, "index.html"));
+  });
+}
 
 // ✅ Global Error Handler
 app.use((err, req, res, next) => {
@@ -66,5 +76,5 @@ app.use((err, req, res, next) => {
   res.status(500).json({ success: false, message: "Internal Server Error" });
 });
 
-// ✅ Export Express app
+// ✅ Export App for Vercel
 export default app;
