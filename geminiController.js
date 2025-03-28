@@ -1,8 +1,10 @@
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
-const { MongoClient } = require('mongodb');
+import dotenv from 'dotenv';
+import express from 'express';
+import cors from 'cors';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { MongoClient } from 'mongodb';
+
+dotenv.config(); // Load environment variables
 
 const app = express();
 const PORT = process.env.PORT || 5000;
