@@ -15,7 +15,7 @@ let patientCollection;
 async function connectToDatabase(retries = 5, delay = 2000) {
   while (retries > 0) {
     try {
-      const client = await MongoClient.connect(url, { useNewUrlParser: true, useUnifiedTopology: true });
+      const client = await MongoClient.connect(url, { useNewUrlParser: true, useUnifiedTopology: true,serverSelectionTimeoutMS: 60000 });
       db = client.db(dbName);
       adminCollection = db.collection('Admin');
       hospitalCollection = db.collection('Hospitals');
