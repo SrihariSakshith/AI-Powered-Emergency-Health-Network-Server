@@ -1,5 +1,5 @@
 import express from "express";
-import cors from "cors";
+import cors from "cors"; // ✅ Import once
 import path from "path";
 import dotenv from "dotenv";
 import hospitalRoutes from "./HospitalsRoutes.js";
@@ -16,18 +16,18 @@ import chatRoutes from "./ChatRoutes.js";
 dotenv.config();
 const app = express();
 
-// ✅ Enable CORS with frontend origin
-import cors from "cors";
-
+// ✅ CORS Middleware (NO DUPLICATE IMPORT)
 app.use(
   cors({
-    origin: ["https://ai-powered-emergency-health-network-frontend.vercel.app"],
+    origin: "https://ai-powered-emergency-health-network-frontend.vercel.app",
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
-app.options("*", cors()); // Enable CORS for all preflight requests
+
+// ✅ Fix Preflight Issue
+app.options("*", (req, res) => res.sendStatus(200));
 
 // ✅ Middleware to Parse JSON Requests
 app.use(express.json());
@@ -66,5 +66,5 @@ app.use((err, req, res, next) => {
   res.status(500).json({ success: false, message: "Internal Server Error" });
 });
 
-// ✅ Export Express app (No `app.listen`)
+// ✅ Export Express app
 export default app;
