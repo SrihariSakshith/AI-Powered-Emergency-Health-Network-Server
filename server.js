@@ -34,7 +34,7 @@ app.use(express.json());
 
 // ✅ Routes
 app.use("/api/hospitals", hospitalRoutes);
-app.use("/api/login", loginRoutes);
+app.use("/login", loginRoutes);
 app.use("/api/donor-form", donorFormRoutes);
 app.use("/api/donorslist", donorListRoutes);
 app.use("/api/donors", donorsRoutes);
