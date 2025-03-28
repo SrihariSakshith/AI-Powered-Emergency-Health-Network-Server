@@ -5,9 +5,9 @@ import dotenv from 'dotenv';
 
 dotenv.config(); // Load environment variables
 
-const url = process.env.MONGODB_URI;
-const dbName = process.env.DATABASE_NAME;
-const apiKey = process.env.GEMINI_API_KEY; // Access API key from environment variables
+const url = process.env.MONGODB_URI; // Matches `MONGODB_URI` in .env
+const dbName = process.env.DATABASE_NAME; // Matches `DATABASE_NAME` in .env
+const apiKey = process.env.GEMINI_API_KEY; // Matches `GEMINI_API_KEY` in .env
 
 let db;
 let geminiCollection;
