@@ -56,11 +56,19 @@ export const handleChat = async (req, res) => {
       return res.status(500).json({ success: false, message: 'AI Model is not initialized. Try restarting the server.' });
     }
 
+    console.log(`🔄 Received message: ${message}`);
     const chat = model.startChat();
     const result = await chat.sendMessage(message);
+
+    if (!result || !result.response) {
+      console.error('❌ Error: Invalid response from the model.');
+      return res.status(500).json({ success: false, message: 'Invalid response from the model. Please try again later.' });
+    }
+
     const response = await result.response;
     const text = response.text();
 
+    console.log(`✅ AI Response: ${text}`);
     res.json({ success: true, reply: text });
   } catch (error) {
     console.error('❌ Chat Error:', error);
