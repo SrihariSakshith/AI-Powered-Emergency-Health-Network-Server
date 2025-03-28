@@ -16,11 +16,11 @@ import chatRoutes from "./ChatRoutes.js";
 dotenv.config();
 const app = express();
 
-// ✅ Enable CORS with provided settings
+// ✅ Enable CORS with proper configuration
 app.use(
   cors({
-    origin: "https://ai-powered-emergency-health-network-frontend.vercel.app",
-    methods: ["POST", "GET"],
+    origin: true, // Allow all origins for development
+    methods: ["POST", "GET", "PUT", "DELETE", "OPTIONS"],
     credentials: true, // Allow credentials
   })
 );
