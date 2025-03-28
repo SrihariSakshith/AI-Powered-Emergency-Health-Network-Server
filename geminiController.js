@@ -1,43 +1,40 @@
 import dotenv from 'dotenv';
-import express from 'express';
-import cors from 'cors';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { MongoClient } from 'mongodb';
 
 dotenv.config(); // Load environment variables
 
-const app = express();
-const PORT = process.env.PORT || 5000;
-
-// Load API Key
 const apiKey = process.env.GEMINI_API_KEY;
-console.log("🔄 API Key:", apiKey ? "Loaded" : "Not Loaded");
-
 const genAI = new GoogleGenerativeAI(apiKey);
 
-// MongoDB Connection
 const url = process.env.MONGODB_URI;
-console.log("🔄 MongoDB URI:", url ? "Loaded" : "Not Loaded");
+const dbName = process.env.DATABASE_NAME;
 
-const client = new MongoClient(url);
+let db;
 let medicalData = '';
+let model;
 
-async function connectToDatabase() {
-  try {
-    await client.connect();
-    const database = client.db('hospitalDB'); // Change this to your DB name
-    const collection = database.collection('medicalData'); // Change this to your collection name
-
-    const documents = await collection.find({}).toArray();
-    medicalData = JSON.stringify(documents, null, 2);
-    console.log("✅ MongoDB Connected. Medical data loaded.");
-  } catch (error) {
-    console.error("❌ MongoDB Connection Error:", error);
+async function connectToDatabase(retries = 5, delay = 2000) {
+  while (retries > 0) {
+    try {
+      const client = await MongoClient.connect(url, { useNewUrlParser: true, useUnifiedTopology: true });
+      db = client.db(dbName);
+      const collection = db.collection('medicalData'); // Change this to your collection name
+      const documents = await collection.find({}).toArray();
+      medicalData = JSON.stringify(documents, null, 2);
+      console.log("✅ MongoDB Connected. Medical data loaded.");
+      return;
+    } catch (error) {
+      console.error('❌ MongoDB connection error:', error);
+      retries -= 1;
+      console.log(`Retrying MongoDB connection (${retries} retries left)...`);
+      await new Promise(res => setTimeout(res, delay));
+    }
   }
+  console.error('❌ Failed to connect to MongoDB after multiple retries.');
+  process.exit(1); // Exit if all retries fail
 }
 
-// Initialize Model
-let model;
 async function initializeGemini() {
   model = genAI.getGenerativeModel({
     model: 'gemini-2.0-flash',
@@ -46,21 +43,6 @@ async function initializeGemini() {
   console.log("✅ AI Model Initialized.");
 }
 
-// Middleware
-app.use(express.json());
-app.use(cors());
-
-// Route to handle user messages
-app.post('/chat', handleChat);
-
-// Start the server
-app.listen(PORT, async () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  await connectToDatabase();
-  await initializeGemini();
-});
-
-// Ensure handleChat is exported as a named export
 export const handleChat = async (req, res) => {
   const { message } = req.body;
 
@@ -85,3 +67,6 @@ export const handleChat = async (req, res) => {
     res.status(500).json({ success: false, message: 'An error occurred while processing your request.' });
   }
 };
+
+// Initialize database and model on startup
+connectToDatabase().then(initializeGemini).catch(console.error);
