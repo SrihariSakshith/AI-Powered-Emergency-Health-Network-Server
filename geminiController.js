@@ -49,16 +49,27 @@ app.use(express.json());
 app.use(cors());
 
 // Route to handle user messages
-app.post('/chat', async (req, res) => {
+app.post('/chat', handleChat);
+
+// Start the server
+app.listen(PORT, async () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+  await connectToDatabase();
+  await initializeGemini();
+});
+
+// Ensure handleChat is exported as a named export
+export const handleChat = async (req, res) => {
+  const { message } = req.body;
+
+  if (!message) {
+    return res.status(400).json({ success: false, message: 'Message is required.' });
+  }
+
   try {
     if (!model) {
-      console.error("❌ Error: Model initialization failed.");
-      return res.status(500).json({ success: false, message: "AI Model is not initialized. Try restarting the server." });
-    }
-
-    const { message } = req.body;
-    if (!message) {
-      return res.status(400).json({ success: false, message: "Message is required." });
+      console.error('❌ Error: Model initialization failed.');
+      return res.status(500).json({ success: false, message: 'AI Model is not initialized. Try restarting the server.' });
     }
 
     const chat = model.startChat();
@@ -68,14 +79,7 @@ app.post('/chat', async (req, res) => {
 
     res.json({ success: true, reply: text });
   } catch (error) {
-    console.error("❌ Chat Error:", error);
-    res.status(500).json({ success: false, message: "An error occurred while processing your request." });
+    console.error('❌ Chat Error:', error);
+    res.status(500).json({ success: false, message: 'An error occurred while processing your request.' });
   }
-});
-
-// Start the server
-app.listen(PORT, async () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  await connectToDatabase();
-  await initializeGemini();
-});
+};
