@@ -1,10 +1,16 @@
 import express from 'express';
-import { getDonors, deleteDonor, addDonor } from './donorListController.js';
+import { getAllDonors, addDonor, deleteDonor } from './donorListController.js';
 
 const router = express.Router();
 
-router.get('/api/donors', getDonors);
-router.delete('/api/donors/:username', deleteDonor);
-router.post('/api/donors', addDonor);
+// Define routes for donors
+router.get('/all', getAllDonors); // Fetch all donors
+router.post('/add', addDonor); // Add a new donor
+router.delete('/:username', deleteDonor); // Delete a donor by username
+
+// Catch-all for undefined endpoints
+router.use((req, res) => {
+  res.status(404).json({ success: false, message: 'Endpoint not found' });
+});
 
 export default router;

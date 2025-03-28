@@ -32,6 +32,7 @@ app.use(express.json());
 app.use("/hospitals", hospitalRoutes);
 app.use("/login", loginRoutes);
 app.use("/donor-form", donorFormRoutes);
+app.use("/donors", donorListRoutes); // Ensure DonorListRoutes is mounted correctly
 app.use("/donors", donorsRoutes);
 app.use("/contact", contactRoutes);
 app.use("/contact-list", contactListRoutes);

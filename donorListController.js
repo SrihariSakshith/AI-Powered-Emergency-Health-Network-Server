@@ -9,56 +9,47 @@ const dbName = process.env.DATABASE_NAME;
 let db;
 let donorsCollection;
 
-async function connectToDatabase() {
-  try {
-    const client = await MongoClient.connect(url); // Removed deprecated options
-    db = client.db(dbName);
-    donorsCollection = db.collection('Donors');
-    console.log('Connected to MongoDB');
-  } catch (error) {
-    console.error('MongoDB connection error:', error);
-    process.exit(1);
+async function connectToDatabase(retries = 5, delay = 2000) {
+  while (retries > 0) {
+    try {
+      const client = await MongoClient.connect(url, { useNewUrlParser: true, useUnifiedTopology: true });
+      db = client.db(dbName);
+      donorsCollection = db.collection('Donors');
+      console.log(`✅ Connected to MongoDB database: ${dbName}`);
+      return;
+    } catch (error) {
+      console.error('❌ MongoDB connection error:', error);
+      retries -= 1;
+      console.log(`Retrying MongoDB connection (${retries} retries left)...`);
+      await new Promise(res => setTimeout(res, delay));
+    }
   }
+  console.error('❌ Failed to connect to MongoDB after multiple retries.');
+  process.exit(1); // Exit if all retries fail
 }
 
 connectToDatabase();
 
-// Fetch donors data
-export const getDonors = async (req, res) => {
+// Fetch all donors
+export const getAllDonors = async (req, res) => {
   try {
-    const donors = await donorsCollection.find().toArray();
+    const donors = await donorsCollection.find({}).toArray();
 
-    // Validate and format donor data
-    const donorData = donors.map((donor) => ({
-      username: donor.username || 'Unknown', // Default value if username is missing
-      donation: donor.donation || 'Not Available', // Default value if donation is missing
-      email: donor.email || 'Not Available', // Default value if email is missing
-      location: donor.location || 'Not Available', // Default value if location is missing
+    if (!Array.isArray(donors)) {
+      return res.status(500).json({ success: false, message: 'Invalid data format from database' });
+    }
+
+    const donorData = donors.map(donor => ({
+      username: donor.username || 'Unknown',
+      donation: donor.donation || 'Not Available',
+      email: donor.email || 'Not Available',
+      location: donor.location || 'Not Available',
     }));
 
-    res.json(donorData);
+    res.json({ success: true, data: donorData });
   } catch (error) {
     console.error('Error fetching donors:', error);
-    return res.status(500).json({ message: 'Error fetching donors data' });
-  }
-};
-
-// Delete a donor by username
-export const deleteDonor = async (req, res) => {
-  try {
-    const donorUsername = req.params.username;
-    console.log(`Deleting donor with username: ${donorUsername}`);
-
-    const result = await donorsCollection.deleteOne({ username: donorUsername });
-
-    if (result.deletedCount === 1) {
-      res.status(200).json({ message: 'Donor deleted successfully' });
-    } else {
-      res.status(404).json({ message: 'Donor not found' });
-    }
-  } catch (error) {
-    console.error('Error deleting donor:', error);
-    res.status(500).json({ message: 'Internal Server Error', error: error.message });
+    res.status(500).json({ success: false, message: 'Error fetching donors data' });
   }
 };
 
@@ -68,7 +59,7 @@ export const addDonor = async (req, res) => {
     const { username, donation, email, location } = req.body;
 
     if (!username || !email || !location) {
-      return res.status(400).json({ message: 'Username, email, and location are required' });
+      return res.status(400).json({ success: false, message: 'Username, email, and location are required' });
     }
 
     const donor = {
@@ -80,9 +71,27 @@ export const addDonor = async (req, res) => {
 
     await donorsCollection.insertOne(donor);
 
-    res.status(201).json({ message: 'Donor added successfully' });
+    res.status(201).json({ success: true, message: 'Donor added successfully' });
   } catch (error) {
     console.error('Error adding donor:', error);
-    res.status(500).json({ message: 'Internal Server Error', error: error.message });
+    res.status(500).json({ success: false, message: 'Error adding donor' });
+  }
+};
+
+// Delete a donor by username
+export const deleteDonor = async (req, res) => {
+  try {
+    const { username } = req.params;
+
+    const result = await donorsCollection.deleteOne({ username });
+
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ success: false, message: 'Donor not found' });
+    }
+
+    res.json({ success: true, message: 'Donor deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting donor:', error);
+    res.status(500).json({ success: false, message: 'Error deleting donor' });
   }
 };
