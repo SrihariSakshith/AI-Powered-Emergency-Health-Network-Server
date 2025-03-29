@@ -19,33 +19,20 @@ const app = express();
 // ✅ Enable CORS with frontend origin
 app.use(
   cors({
-    origin: "https://ai-powered-emergency-health-network-frontend.vercel.app",
+    origin: "https://ai-powered-emergency-health-network-frontend.vercel.app", // Restrict to frontend
     methods: ["POST", "GET", "PUT", "DELETE", "OPTIONS"],
-    credentials: true,
+    credentials: true, // Allow credentials
   })
 );
 
 // ✅ Middleware to Parse JSON Requests
 app.use(express.json());
-app.use((req, res, next) => {
-  console.log("📥 Received Request:");
-  console.log("🔹 Method:", req.method);
-  console.log("🔹 Path:", req.path);
-  console.log("🔹 Headers:", req.headers);
 
-  if (Object.keys(req.body).length) {
-    console.log("🔹 Body:", req.body);
-  } else {
-    console.log("🔹 No Body");
-  }
-
-  next();
-});
 // ✅ Routes
 app.use("/hospitals", hospitalRoutes);
 app.use("/login", loginRoutes);
 app.use("/donor-form", donorFormRoutes);
-app.use("/donorslist", donorListRoutes);
+app.use("/donorslist", donorListRoutes); // Ensure DonorListRoutes is mounted correctly
 app.use("/donors", donorsRoutes);
 app.use("/contact", contactRoutes);
 app.use("/contact-list", contactListRoutes);
@@ -64,14 +51,14 @@ app.get("/health", (req, res) => {
   res.status(200).json({ success: true, message: "Server is running!" });
 });
 
-// ✅ Test Connection Route
+// ✅ Test Connection Route (Only checks if backend is running)
 app.get("/test-connection", (req, res) => {
   res.status(200).json({ success: true, message: "Frontend & Backend are connected!" });
 });
 
 // ✅ Handle requests for favicon.ico
 app.get("/favicon.ico", (req, res) => {
-  res.status(204).send();
+  res.status(204).send(); // No Content
 });
 
 // ✅ Serve Static Files (Production Mode)
@@ -89,5 +76,9 @@ app.use((err, req, res, next) => {
   res.status(500).json({ success: false, message: "Internal Server Error" });
 });
 
-// ✅ Export App for Vercel
+// ✅ Start Server
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
+
+// ✅ Export App for Testing
 export default app;
