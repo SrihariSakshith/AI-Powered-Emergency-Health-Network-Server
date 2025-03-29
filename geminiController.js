@@ -13,6 +13,7 @@ const dbName = process.env.DATABASE_NAME;
 let db;
 let hospitalData = ''; // Now it stores hospital data instead of medical data
 let model;
+let chatHistory = [];
 
 async function connectToDatabase(retries = 5, delay = 2000) {
   while (retries > 0) {
@@ -20,10 +21,13 @@ async function connectToDatabase(retries = 5, delay = 2000) {
       const client = await MongoClient.connect(url, { useNewUrlParser: true, useUnifiedTopology: true });
       db = client.db(dbName);
       const hospitalCollection = db.collection('Hospitals'); // Use 'Hospitals' collection
+      const donorsCollection = db.collection('Donors');
       const documents = await hospitalCollection.find({}).toArray();
       hospitalData = JSON.stringify(documents, null, 2);
       console.log("✅ MongoDB Connected. Hospital data loaded.");
-
+      // Fetch donor data
+      const donors = await donorsCollection.find({}).toArray();
+      donorData = JSON.stringify(donors, null, 2);
       // ✅ Initialize AI model **only after** fetching hospital data
       await initializeGemini();
       return;
@@ -41,14 +45,17 @@ async function connectToDatabase(retries = 5, delay = 2000) {
 async function initializeGemini() {
   model = genAI.getGenerativeModel({
     model: 'gemini-2.0-flash',
-    systemInstruction: `You are a hospital assistant bot designed to provide hospital-related information and recommend hospitals based on user queries. 
+    systemInstruction: `You are a hospital assistant bot designed to provide hospital and donor-related information. 
       
-    - Always provide accurate and reliable data, but remind users to verify with the hospital for the latest details. 
-    - Do NOT format responses using asterisks (*), underscores (_), bullet points, or markdown-like formatting. 
-    - Present hospital names and details in a plain text format without special characters. 
-    - If listing multiple hospitals, separate them using commas or line breaks, but do NOT use numbering or special symbols. 
+    - Always provide accurate and reliable data, but remind users to verify with the hospital.
+    - Present hospital and donor details in plain text format.
+    - If a user asks about hospitals, provide details from the following database:
       
-    Here is the extracted hospital database:\n${hospitalData}`,
+    ${hospitalData}
+
+    - If a user asks about blood donors, provide details from the following donor database:
+
+    ${donorData}`,
   });
   console.log("✅ AI Model Initialized with Hospital Data.");
 }
@@ -66,11 +73,26 @@ export const handleChat = async (req, res) => {
       return res.status(500).json({ success: false, message: 'AI Model is not initialized. Try restarting the server.' });
     }
 
-    const chat = model.startChat();
+    const chat = model.startChat({
+      history: chatHistory,
+    });
     const result = await chat.sendMessage(message);
     
     const text = result.response.text();
 
+    // Store last interaction per session
+    chatHistory.push({
+      role: "user",
+      parts: [
+        {text: message},
+      ],
+    });
+    chatHistory.push({
+      role: "model",
+      parts: [
+        {text: text},
+      ],
+    });
     res.json({ success: true, reply: text });
   } catch (error) {
     console.error('❌ Chat Error:', error);
