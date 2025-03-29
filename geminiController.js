@@ -11,30 +11,20 @@ const url = process.env.MONGODB_URI;
 const dbName = process.env.DATABASE_NAME;
 
 let db;
-let hospitalData = '';
-let donorData = ''; // Added donors data storage
+let hospitalData = ''; // Now it stores hospital data instead of medical data
 let model;
-let chatHistory = {}; // Temporary session-based storage
 
 async function connectToDatabase(retries = 5, delay = 2000) {
   while (retries > 0) {
     try {
       const client = await MongoClient.connect(url, { useNewUrlParser: true, useUnifiedTopology: true });
       db = client.db(dbName);
+      const hospitalCollection = db.collection('Hospitals'); // Use 'Hospitals' collection
+      const documents = await hospitalCollection.find({}).toArray();
+      hospitalData = JSON.stringify(documents, null, 2);
+      console.log("✅ MongoDB Connected. Hospital data loaded.");
 
-      const hospitalCollection = db.collection('Hospitals');
-      const donorsCollection = db.collection('Donors'); // ✅ Added donors collection
-
-      // Fetch hospital data
-      const hospitals = await hospitalCollection.find({}).toArray();
-      hospitalData = JSON.stringify(hospitals, null, 2);
-
-      // Fetch donor data
-      const donors = await donorsCollection.find({}).toArray();
-      donorData = JSON.stringify(donors, null, 2);
-
-      console.log("✅ MongoDB Connected. Hospital and donor data loaded.");
-
+      // ✅ Initialize AI model **only after** fetching hospital data
       await initializeGemini();
       return;
     } catch (error) {
@@ -51,26 +41,23 @@ async function connectToDatabase(retries = 5, delay = 2000) {
 async function initializeGemini() {
   model = genAI.getGenerativeModel({
     model: 'gemini-2.0-flash',
-    systemInstruction: `You are a hospital assistant bot designed to provide hospital and donor-related information. 
+    systemInstruction: `You are a hospital assistant bot designed to provide hospital-related information and recommend hospitals based on user queries. 
       
-    - Always provide accurate and reliable data, but remind users to verify with the hospital.
-    - Present hospital and donor details in plain text format.
-    - If a user asks about hospitals, provide details from the following database:
+    - Always provide accurate and reliable data, but remind users to verify with the hospital for the latest details. 
+    - Do NOT format responses using asterisks (*), underscores (_), bullet points, or markdown-like formatting. 
+    - Present hospital names and details in a plain text format without special characters. 
+    - If listing multiple hospitals, separate them using commas or line breaks, but do NOT use numbering or special symbols. 
       
-    ${hospitalData}
-
-    - If a user asks about blood donors, provide details from the following donor database:
-
-    ${donorData}`,
+    Here is the extracted hospital database:\n${hospitalData}`,
   });
-  console.log("✅ AI Model Initialized with Hospital and Donor Data.");
+  console.log("✅ AI Model Initialized with Hospital Data.");
 }
 
 export const handleChat = async (req, res) => {
-  const { message, sessionId } = req.body; // Expect sessionId from frontend
+  const { message } = req.body;
 
-  if (!message || !sessionId) {
-    return res.status(400).json({ success: false, message: 'Message and sessionId are required.' });
+  if (!message) {
+    return res.status(400).json({ success: false, message: 'Message is required.' });
   }
 
   try {
@@ -79,26 +66,17 @@ export const handleChat = async (req, res) => {
       return res.status(500).json({ success: false, message: 'AI Model is not initialized. Try restarting the server.' });
     }
 
-    // Retrieve previous interaction for continuity
-    const previousContext = chatHistory[sessionId] || '';
     const chat = model.startChat();
+    const result = await chat.sendMessage(message);
+    
+    const text = result.response.text();
 
-    // Append previous interaction as context
-    const input = previousContext ? `Previous: ${previousContext}\nUser: ${message}` : message;
-
-    const result = await chat.sendMessage(input);
-    const responseText = result.response.text();
-
-    // Store last interaction per session
-    chatHistory[sessionId] = `User: ${message}\nBot: ${responseText}`;
-
-    res.json({ success: true, reply: responseText });
+    res.json({ success: true, reply: text });
   } catch (error) {
     console.error('❌ Chat Error:', error);
     res.status(500).json({ success: false, message: 'An error occurred while processing your request.' });
   }
 };
-
 
 // ✅ Ensure AI is initialized only after DB connection
 connectToDatabase().catch(console.error);
