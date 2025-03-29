@@ -13,6 +13,7 @@ const dbName = process.env.DATABASE_NAME;
 let db;
 let hospitalData = ''; // Now it stores hospital data instead of medical data
 let model;
+let donorData = ''; // Now it stores donor data instead of medical data
 let chatHistory = [];
 
 async function connectToDatabase(retries = 5, delay = 2000) {
