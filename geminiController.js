@@ -46,17 +46,12 @@ async function connectToDatabase(retries = 5, delay = 2000) {
 async function initializeGemini() {
   model = genAI.getGenerativeModel({
     model: 'gemini-2.0-flash',
-    systemInstruction: `You are a hospital assistant bot designed to provide hospital and donor-related information. 
-      
-    - Always provide accurate and reliable data, but remind users to verify with the hospital.
-    - Present hospital and donor details in plain text format.
-    - If a user asks about hospitals, provide details from the following database:
-      
-    ${hospitalData}
-
-    - If a user asks about blood donors, provide details from the following donor database:
-
-    ${donorData}`,
+    systemInstruction: `You are a hospital assistant bot designed to provide basic medical assistance, hospital, and donor-related information.
+- Always provide accurate and reliable information, but remind users to verify with a healthcare professional or the hospital.
+- You are allowed to give basic first aid suggestions for common medical emergencies such as burns, snake bites, fractures, fainting, bleeding, etc.
+- Present hospital and donor details in plain text format.
+- If a user asks about hospitals, provide details from the following database: ${hospitalData}
+- If a user asks about blood donors, provide details from the following donor database:${donorData}`,
   });
   console.log("✅ AI Model Initialized with Hospital Data.");
 }
